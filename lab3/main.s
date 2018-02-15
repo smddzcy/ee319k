@@ -1,7 +1,7 @@
 ;****************** main.s ***************
-; Program written by: ***Your Names**update this***
+; Program written by: Samed D, Nikhil A
 ; Date Created: 2/4/2017
-; Last Modified: 1/15/2018
+; Last Modified: 2/14/2018
 ; Brief description of the program
 ;   The LED toggles at 8 Hz and a varying duty-cycle
 ; Hardware connections (External: One button and one LED)
@@ -44,7 +44,7 @@ GPIO_LOCK_KEY      EQU 0x4C4F434B  ; Unlocks the GPIO_CR register
 SYSCTL_RCGCGPIO_R  EQU 0x400FE608
 
 COUNT EQU 50000
-BREATHE_COUNT EQU 5000
+BREATHE_COUNT EQU 3000
 
      IMPORT  TExaS_Init
      THUMB
@@ -149,6 +149,8 @@ breathe_loop_dec
 breathe_loop_end
     CMP R8, #100
     BGE breathe_reverse
+    CMP R8, #0
+    BEQ breathe_reverse
     LDR R0, =GPIO_PORTE_DATA_R
     LDR R1, [R0]
     AND R2, R1, #0x01
@@ -191,3 +193,4 @@ breathe_dloop
     
      ALIGN      ; make sure the end of this section is aligned
      END        ; end of file
+
