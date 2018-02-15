@@ -1,5 +1,5 @@
 ;****************** main.s ***************
-; Program written by: Samed Duzcay, Nikhil Arora
+; Program written by: ***Your Names**update this***
 ; Date Created: 2/4/2017
 ; Last Modified: 1/15/2018
 ; Brief description of the program
@@ -44,16 +44,17 @@ GPIO_LOCK_KEY      EQU 0x4C4F434B  ; Unlocks the GPIO_CR register
 SYSCTL_RCGCGPIO_R  EQU 0x400FE608
 
 COUNT EQU 50000
+BREATHE_COUNT EQU 5000
 
      IMPORT  TExaS_Init
      THUMB
      AREA    DATA, ALIGN=2
 ;global variables go here
-	 
+     
      AREA    |.text|, CODE, READONLY, ALIGN=2
      THUMB
      EXPORT  Start
-Start	
+Start   
  ; TExaS_Init sets bus clock at 80 MHz
      BL  TExaS_Init ; voltmeter, scope on PD3
  ; Initialization goes here
@@ -61,8 +62,8 @@ Start
     LDR R0, [R1]
     ORR R0, R0, #0x30               ; set bit 5 and 4 to turn on clock
     STR R0, [R1]
-	NOP
-	NOP
+    NOP
+    NOP
     NOP
     NOP                             ; allow time for clock to finish
     LDR R1, =GPIO_PORTF_LOCK_R      ; 2) unlock the lock register
@@ -92,55 +93,101 @@ Start
     LDR R1, =GPIO_PORTE_DEN_R       ; 7) enable Port E digital port
     MOV R0, #0xFF                   ; 1 means enable digital I/O
     STR R0, [R1]
-	MOV R9, #10 ; constant 10
-	MOV R8, #2 ; duty cycle
-	MOV R7, R8
-	MOV R6, #0 ; PE1 pressed
+    MOV R9, #100 ; constant 10
+    MOV R8, #20 ; duty cycle
+    MOV R7, R8
+    MOV R6, #0 ; PE1 pressed
      CPSIE  I    ; TExaS voltmeter, scope runs on interrupts
 loop 
-	 LDR R0, =GPIO_PORTE_DATA_R
-	 LDR R1, [R0]
-	 AND R2, R1, #0x01
-	 CMP R2, #0
-	 BNE loop_low
-	 ; loop high
-	 MOV R7, R8
-	 B loop_end
+     LDR R0, =GPIO_PORTE_DATA_R
+     LDR R1, [R0]
+     AND R2, R1, #0x01
+     CMP R2, #0
+     BNE loop_low
+     ; loop high
+     MOV R7, R8
+     B loop_end
 loop_low
-	 SUB R7, R9, R8
+     SUB R7, R9, R8
 loop_end
-	 ; alternate the signal only if duty cycle is not 0
-	 CMP R7, #0
-	 BEQ loop_end_2
-	 EOR R1, R1, #0x01 ; low/high alternate
+     ; alternate the signal only if duty cycle is not 0
+     CMP R7, #0
+     BEQ loop_end_2
+     EOR R1, R1, #0x01 ; low/high alternate
 loop_end_2
-	 STR R1, [R0]
-	 AND R2, R1, #0x02
-	 CMP R2, #2
-	 BEQ pe1_pressed
+     STR R1, [R0]
+     LDR R4, =GPIO_PORTF_DATA_R
+     LDR R3, [R4]
+     AND R3, #0x10
+     CMP R3, #0
+     BEQ breathe ; PF4 pressed
+     AND R2, R1, #0x02
+     CMP R2, #2
+     BEQ pe1_pressed
 pe1_not_pressed
      CMP R6, #1
-	 BEQ increment_duty_cycle ; pressed before and now released
-	 B delay
+     BEQ increment_duty_cycle ; pressed before and now released
+     B delay
 pe1_pressed
-	 MOV R6, #1
-	 B delay
+     MOV R6, #1
+     B delay
+breathe
+    MOV R5, #1 ; 1 = incrementing duty cycle, 0 = decrementing duty cycle
+breathe_loop
+    LDR R4, =GPIO_PORTF_DATA_R
+    LDR R3, [R4]
+    AND R3, #0x10
+    CMP R3, #0
+    BNE loop ; PF4 released
+    CMP R5, #1
+    BNE breathe_loop_dec
+breath_loop_inc
+    ADD R8, #1
+    B breathe_loop_end
+breathe_loop_dec
+    SUB R8, #1
+breathe_loop_end
+    CMP R8, #100
+    BGE breathe_reverse
+    LDR R0, =GPIO_PORTE_DATA_R
+    LDR R1, [R0]
+    AND R2, R1, #0x01
+    CMP R2, #0
+    BNE breathe_loop_low
+    ; loop high
+    MOV R7, R8
+    B breathe_loop_end_2
+breathe_loop_low
+    SUB R7, R9, R8
+breathe_loop_end_2
+    EOR R1, R1, #0x01 ; low/high alternate
+    STR R1, [R0]
+    B breathe_delay
+breathe_reverse
+    EOR R5, #1
+    B breathe_loop
 increment_duty_cycle
-	MOV R6, #0 ; reset PE1 pressed status
-	ADD R8, #2
-	CMP R8, #10
-	BGE duty_cycle_mod_10
-	B delay
-duty_cycle_mod_10
-	SUB R8, #10
+    MOV R6, #0 ; reset PE1 pressed status
+    ADD R8, #20
+    CMP R8, #101
+    BGE make_duty_cycle_0
+    B delay
+make_duty_cycle_0
+    MOV R8, #0
 delay
-	LDR R0, =COUNT
-	MUL R0, R7
+    LDR R0, =COUNT
+    MUL R0, R7
 dloop
-	SUBS R0, #1
-	BGT dloop
-	B loop
-
+    SUBS R0, #1
+    BGT dloop
+    B loop
+breathe_delay
+    LDR R0, =BREATHE_COUNT
+    MUL R0, R7
+breathe_dloop
+    SUBS R0, #1
+    BGT breathe_dloop
+    B breathe_loop
+    
      ALIGN      ; make sure the end of this section is aligned
      END        ; end of file
-
